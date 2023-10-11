@@ -32,6 +32,6 @@ async fn rocket() -> _ {
         .expect("Couldn't migrate the database tables");
 
     rocket::build()
-        .mount("/", routes![auth::register_user])
+        .mount("/", routes![auth::register_user, auth::login_user])
         .manage(pool)
 }

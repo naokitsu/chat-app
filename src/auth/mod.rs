@@ -20,6 +20,39 @@ pub struct Token {
     token: String,
 }
 
+#[post("/login", data = "<user>")]
+pub async fn login_user(
+    pool: &State<Pool<Sqlite>>,
+    user: json::Json<UserRegistration>,
+) -> Result<json::Json<Token>, Status> {
+    let mut connection = pool
+        .acquire()
+        .await
+        .map_err(|_| Status::InternalServerError)?;
+
+    let query_result = sqlx::query!("SELECT * FROM users WHERE username = ?", user.username)
+        .fetch_one(&mut *connection)
+        .await
+        .map_err(|_| Status::InternalServerError)?;
+
+    let real_hash = match query_result.salted_hash {
+        Some(x) => x,
+        None => return Err(Status::InternalServerError),
+    };
+
+    let salt = real_hash[..16].to_vec();
+
+    let user_hash =
+        hash_password(&*user.password, Some(salt)).map_err(|_| Status::InternalServerError)?;
+
+    if user_hash == real_hash {
+        let token = Token::generate_token().map_err(|_| Status::InternalServerError)?;
+        Ok(json::Json(token))
+    } else {
+        Err(Status::Unauthorized)
+    }
+}
+
 #[post("/register", data = "<user>")]
 pub async fn register_user(
     pool: &State<Pool<Sqlite>>,
@@ -43,9 +76,7 @@ pub async fn register_user(
     }
 
     let hashed_password =
-        hash_password(user.password.as_str()).map_err(|_| Status::InternalServerError)?;
-
-    let token = Token::generate_token().map_err(|_| Status::InternalServerError)?;
+        hash_password(user.password.as_str(), None).map_err(|_| Status::InternalServerError)?;
 
     let insert_result = sqlx::query!(
         "INSERT INTO users (username, salted_hash) VALUES (?, ?)",
@@ -59,12 +90,21 @@ pub async fn register_user(
         Status::InternalServerError
     })?;
 
+    let token = Token::generate_token().map_err(|_| Status::InternalServerError)?;
+
     Ok(json::Json(token))
 }
 
-fn hash_password(password: &str) -> Result<Vec<u8>, openssl::error::ErrorStack> {
+fn hash_password(
+    password: &str,
+    optional_salt: Option<Vec<u8>>,
+) -> Result<Vec<u8>, openssl::error::ErrorStack> {
     let mut salt = [0u8; 16];
-    rand_bytes(&mut salt).unwrap();
+    if let Some(x) = optional_salt {
+        salt.copy_from_slice(&x[..16])
+    } else {
+        rand_bytes(&mut salt).unwrap();
+    }
 
     let mut hasher = Hasher::new(MessageDigest::sha256())?;
     hasher.update(password.as_bytes())?;
