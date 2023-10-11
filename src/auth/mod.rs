@@ -20,7 +20,7 @@ pub struct Token {
     token: String,
 }
 
-#[post("/users", data = "<user>")]
+#[post("/register", data = "<user>")]
 pub async fn register_user(
     pool: &State<Pool<Sqlite>>,
     user: json::Json<UserRegistration>,
