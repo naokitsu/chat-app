@@ -35,10 +35,7 @@ pub async fn login_user(
         .await
         .map_err(|_| Status::InternalServerError)?;
 
-    let real_hash = match query_result.salted_hash {
-        Some(x) => x,
-        None => return Err(Status::InternalServerError),
-    };
+    let real_hash = query_result.salted_hash;
 
     let salt = real_hash[..16].to_vec();
 

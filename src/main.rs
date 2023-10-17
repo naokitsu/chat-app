@@ -1,4 +1,6 @@
 mod auth;
+mod database;
+mod snowflake;
 
 #[macro_use]
 extern crate rocket;

@@ -1,27 +1,36 @@
+mod sqlite;
+
+use sqlx::Error;
 use std::time::SystemTime;
 
+enum DatabaseError {
+    ConnectionFailed(Error),
+    QueryFailed(Error),
+}
+
+#[async_trait]
 trait DatabaseManager {
-    fn setup(&self);
+    async fn setup(&self) -> Result<(), DatabaseError>;
 
-    fn teardown(&self);
+    async fn teardown(&self) -> Result<(), DatabaseError>;
 
-    fn add_user(&self, user: User, hash: Hash) -> Result<(), ()>;
+    async fn add_user(&self, user: User, hash: Hash) -> Result<(), ()>;
 
-    fn remove_user(&self, id: Id) -> Result<(), ()>;
+    async fn remove_user(&self, id: Id) -> Result<(), ()>;
 
-    fn select_user(&self, id: Id) -> Option<User>;
+    async fn select_user(&self, id: Id) -> Option<User>;
 
-    fn add_room(&self, room: Room) -> Result<(), ()>;
+    async fn add_room(&self, room: Room) -> Result<(), ()>;
 
-    fn remove_room(&self, id: Id) -> Result<(), ()>;
+    async fn remove_room(&self, id: Id) -> Result<(), ()>;
 
-    fn select_room(&self, id: Id) -> Option<Room>;
-    
-    fn add_message(&self, message: Message) -> Result<(), ()>;
-    
-    fn remove_message(&self, id: Id) -> Result<(), ()>;
-    
-    fn select_message(&self, id: Id) -> Option<Message>;
+    async fn select_room(&self, id: Id) -> Option<Room>;
+
+    async fn add_message(&self, message: Message) -> Result<(), ()>;
+
+    async fn remove_message(&self, id: Id) -> Result<(), ()>;
+
+    async fn select_message(&self, id: Id) -> Option<Message>;
 }
 
 type Id = u64;
